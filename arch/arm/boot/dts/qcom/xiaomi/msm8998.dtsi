@@ -71,6 +71,7 @@
 			compatible = "android,firmware";
 			fstab {
 				compatible = "android,fstab";
+
 				vendor {
 					compatible = "android,vendor";
 					dev = "/dev/block/platform/soc/1da4000.ufshc/by-name/cust";
@@ -88,7 +89,7 @@
 &usb3 {
 	dwc3@a800000 {
 		maximum-speed = "high-speed";
-	};
+	};		
 };
 
 &soc {
