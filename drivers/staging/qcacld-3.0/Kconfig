@@ -152,8 +152,20 @@ config WLAN_FEATURE_FILS
 	bool "Enable FILS_SK feature"
 	default n
 
+config WLAN_FEATURE_FIPS
+	bool "Enable FIPS feature"
+	default n
+
 config WLAN_FEATURE_PKT_CAPTURE
 	bool "Enable packet capture feature"
+	default n
+
+config WLAN_BEACON_REPORTING
+	bool "Enable beacon reporting feature"
+	default n
+
+config WLAN_FW_THERMAL_MITIGATION
+	bool "Enable FW thermal mitigation feature"
 	default n
 
 config FEATURE_PKTLOG
