@@ -1280,11 +1280,6 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	mfd->index = fbi_list_index;
 	mfd->mdp_fb_page_protection = MDP_FB_PAGE_PROTECTION_WRITECOMBINE;
 
-	if (!lcd_backlight_registered) {
-		backlight_led.brightness = mfd->panel_info->brightness_max;
-		backlight_led.max_brightness = mfd->panel_info->brightness_max;
-	}
-
 	mfd->ext_ad_ctrl = -1;
 	if (mfd->panel_info && mfd->panel_info->brightness_max > 0)
 		MDSS_BRIGHT_TO_BL(mfd->bl_level, backlight_led.brightness,
@@ -1351,6 +1346,8 @@ static int mdss_fb_probe(struct platform_device *pdev)
 
 	/* android supports only one lcd-backlight/lcd for now */
 	if (!lcd_backlight_registered) {
+		backlight_led.brightness = mfd->panel_info->brightness_max;
+		backlight_led.max_brightness = mfd->panel_info->brightness_max;
 		if (led_classdev_register(&pdev->dev, &backlight_led))
 			pr_err("led_classdev_register failed\n");
 		else
@@ -3997,7 +3994,7 @@ static int mdss_fb_set_par(struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
 	struct fb_var_screeninfo *var = &info->var;
-	int old_imgType, old_format, out_format;
+	int old_imgType, new_format;
 	int ret = 0;
 
 	ret = mdss_fb_pan_idle(mfd);
@@ -4080,12 +4077,11 @@ static int mdss_fb_set_par(struct fb_info *info)
 		mfd->fbi->fix.smem_len = PAGE_ALIGN(mfd->fbi->fix.line_length *
 				mfd->fbi->var.yres) * mfd->fb_page;
 
-	old_format = mfd->panel_info->out_format;
-	out_format = mdss_grayscale_to_mdp_format(var->grayscale);
-	if (!IS_ERR_VALUE(out_format)) {
-		mfd->panel_info->out_format = out_format;
-		if (old_format != mfd->panel_info->out_format)
+	new_format = mdss_grayscale_to_mdp_format(var->grayscale);
+	if (!IS_ERR_VALUE(new_format)) {
+		if (new_format != mfd->panel_info->out_format)
 			mfd->panel_reconfig = true;
+		mfd->panel_info->out_format = new_format;
 	}
 
 	if (mdss_fb_is_hdmi_primary(mfd) && mfd->panel_reconfig)

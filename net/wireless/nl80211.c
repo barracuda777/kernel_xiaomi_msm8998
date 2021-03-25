@@ -1312,46 +1312,6 @@ nl80211_send_mgmt_stypes(struct sk_buff *msg,
 	return 0;
 }
 
-static int
-nl80211_put_iftype_akm_suites(struct cfg80211_registered_device *rdev,
-			      struct sk_buff *msg)
-{
-	int i;
-	struct nlattr *nested, *nested_akms;
-	const struct wiphy_iftype_akm_suites *iftype_akms;
-
-	if (!rdev->wiphy.num_iftype_akm_suites ||
-	    !rdev->wiphy.iftype_akm_suites)
-		return 0;
-
-	nested = nla_nest_start(msg, NL80211_ATTR_IFTYPE_AKM_SUITES);
-	if (!nested)
-		return -ENOBUFS;
-
-	for (i = 0; i < rdev->wiphy.num_iftype_akm_suites; i++) {
-		nested_akms = nla_nest_start(msg, i + 1);
-		if (!nested_akms)
-			return -ENOBUFS;
-
-		iftype_akms = &rdev->wiphy.iftype_akm_suites[i];
-
-		if (nl80211_put_iftypes(msg, NL80211_IFTYPE_AKM_ATTR_IFTYPES,
-					iftype_akms->iftypes_mask))
-			return -ENOBUFS;
-
-		if (nla_put(msg, NL80211_IFTYPE_AKM_ATTR_SUITES,
-			    sizeof(u32) * iftype_akms->n_akm_suites,
-			    iftype_akms->akm_suites)) {
-			return -ENOBUFS;
-		}
-		nla_nest_end(msg, nested_akms);
-	}
-
-	nla_nest_end(msg, nested);
-
-	return 0;
-}
-
 struct nl80211_dump_wiphy_state {
 	s64 filter_wiphy;
 	long start;
@@ -1650,7 +1610,6 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 					NL80211_FEATURE_SUPPORTS_WMM_ADMISSION)
 				CMD(add_tx_ts, ADD_TX_TS);
 			CMD(update_connect_params, UPDATE_CONNECT_PARAMS);
-			CMD(update_ft_ies, UPDATE_FT_IES);
 		}
 		/* add into the if now */
 #undef CMD
@@ -1749,10 +1708,7 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 		 * case we'll continue with more data in the next round,
 		 * but break unconditionally so unsplit data stops here.
 		 */
-		if (state->split)
-			state->split_start++;
-		else
-			state->split_start = 0;
+		state->split_start++;
 		break;
 	case 9:
 		if (rdev->wiphy.extended_capabilities &&
@@ -1897,13 +1853,6 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			}
 			nla_nest_end(msg, nested);
 		}
-
-		state->split_start++;
-		break;
-	case 14:
-
-		if (nl80211_put_iftype_akm_suites(rdev, msg))
-			goto nla_put_failure;
 
 		/* done */
 		state->split_start = 0;
@@ -3247,9 +3196,6 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	err = nl80211_parse_key(info, &key);
 	if (err)
 		return err;
-
-	if (key.idx < 0)
-		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
@@ -10802,12 +10748,12 @@ static int nl80211_vendor_cmd(struct sk_buff *skb, struct genl_info *info)
 				if (!wdev->netdev && !wdev->p2p_started)
 					return -ENETDOWN;
 			}
+
+			if (!vcmd->doit)
+				return -EOPNOTSUPP;
 		} else {
 			wdev = NULL;
 		}
-
-		if (!vcmd->doit)
-			return -EOPNOTSUPP;
 
 		if (info->attrs[NL80211_ATTR_VENDOR_DATA]) {
 			data = nla_data(info->attrs[NL80211_ATTR_VENDOR_DATA]);
